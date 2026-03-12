@@ -41,12 +41,86 @@ import {
   IconUserStar,
 } from "@tabler/icons-react";
 
+import mosqueBg from "@/assets/mosque-bg.jpg";
 import DateHolidays, { type HolidaysTypes } from "date-holidays";
 import useSwr from "swr";
 import { useNavigate } from "react-router";
 import clientRoutes from "@/clientRoutes";
 dayjs.locale("id");
 dayjs.extend(duration);
+
+// ====== ANIMATION STYLES (injected once) ======
+const animStyleId = "jadwal-imam-animations";
+if (typeof document !== "undefined" && !document.getElementById(animStyleId)) {
+  const style = document.createElement("style");
+  style.id = animStyleId;
+  style.textContent = `
+    @keyframes ji-fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes ji-fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes ji-scaleIn {
+      from { opacity: 0; transform: scale(0.85); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    @keyframes ji-slideLeft {
+      from { opacity: 0; transform: translateX(20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes ji-pulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(74, 222, 128, 0.5); }
+      50% { opacity: 0.6; box-shadow: 0 0 16px rgba(74, 222, 128, 0.8); }
+    }
+    @keyframes ji-glow {
+      0%, 100% { filter: drop-shadow(0 0 6px currentColor); }
+      50% { filter: drop-shadow(0 0 14px currentColor); }
+    }
+    @keyframes ji-breathe {
+      0%, 100% { box-shadow: 0 0 30px rgba(20, 184, 166, 0.15), 0 0 60px rgba(20, 184, 166, 0.06); }
+      50% { box-shadow: 0 0 50px rgba(20, 184, 166, 0.25), 0 0 90px rgba(20, 184, 166, 0.1); }
+    }
+    @keyframes ji-shimmer {
+      0% { background-position: -200% center; }
+      100% { background-position: 200% center; }
+    }
+    @keyframes ji-float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+    @keyframes ji-countPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    .ji-fadeUp { animation: ji-fadeUp 0.5s ease-out both; }
+    .ji-fadeIn { animation: ji-fadeIn 0.4s ease-out both; }
+    .ji-scaleIn { animation: ji-scaleIn 0.4s ease-out both; }
+    .ji-slideLeft { animation: ji-slideLeft 0.4s ease-out both; }
+    .ji-pulse { animation: ji-pulse 2s ease-in-out infinite; }
+    .ji-glow { animation: ji-glow 2.5s ease-in-out infinite; }
+    .ji-breathe { animation: ji-breathe 3s ease-in-out infinite; }
+    .ji-float { animation: ji-float 3s ease-in-out infinite; }
+    .ji-countPulse { animation: ji-countPulse 2s ease-in-out infinite; }
+    .ji-shimmer {
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
+      background-size: 200% 100%;
+      animation: ji-shimmer 3s ease-in-out infinite;
+    }
+    .ji-card:active { transform: scale(0.97); }
+    .ji-card { transition: transform 0.15s ease, box-shadow 0.3s ease; }
+    .ji-delay-1 { animation-delay: 0.1s; }
+    .ji-delay-2 { animation-delay: 0.2s; }
+    .ji-delay-3 { animation-delay: 0.3s; }
+    .ji-delay-4 { animation-delay: 0.4s; }
+    .ji-delay-5 { animation-delay: 0.5s; }
+    .ji-delay-6 { animation-delay: 0.6s; }
+    .ji-delay-7 { animation-delay: 0.7s; }
+  `;
+  document.head.appendChild(style);
+}
 
 // ====== GLASSMORPHISM STYLES ======
 const glass: React.CSSProperties = {
@@ -224,9 +298,9 @@ export default function AdhanPage() {
     return (
       <Container size="md" w="100%">
         <Stack gap="xl" py="xl">
-          <Skeleton height={20} radius="sm" />
-          <Skeleton height={200} radius="md" />
-          <Skeleton height={300} radius="md" />
+          <Skeleton height={20} radius="sm" className="ji-fadeIn" />
+          <Skeleton height={200} radius="md" className="ji-fadeIn ji-delay-1" />
+          <Skeleton height={300} radius="md" className="ji-fadeIn ji-delay-2" />
         </Stack>
       </Container>
     );
@@ -247,18 +321,37 @@ export default function AdhanPage() {
           {/* ===== HERO: IMAM HARI INI ===== */}
           <Card
             padding="xl"
+            className="ji-fadeUp ji-card"
             style={{
               ...glass,
-              background: "rgba(20, 184, 166, 0.05)",
+              background: "transparent",
+              backgroundImage: `url(${mosqueBg})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center top",
               boxShadow: "0 8px 40px rgba(0, 0, 0, 0.3), 0 0 80px rgba(20, 184, 166, 0.06), inset 0 1px 0 rgba(255,255,255,0.06)",
+              position: "relative",
+              overflow: "hidden",
             }}
           >
-            <Stack align="center" gap="md">
-              <Text size="sm" c="dimmed" tt="uppercase" fw={600} style={{ letterSpacing: 2 }}>
+            {/* Dark overlay for readability */}
+            <Box
+              style={{
+                position: "absolute",
+                inset: 0,
+                background: "linear-gradient(180deg, rgba(5,5,8,0.55) 0%, rgba(5,5,8,0.8) 60%, rgba(5,5,8,0.92) 100%)",
+                backdropFilter: "blur(2px)",
+                zIndex: 0,
+              }}
+            />
+            <Stack align="center" gap="md" style={{ position: "relative", zIndex: 1 }}>
+              <Text size="sm" c="dimmed" tt="uppercase" fw={600} className="ji-fadeIn ji-delay-1"
+                style={{ letterSpacing: 2 }}
+              >
                 Imam Shalat Hari Ini
               </Text>
 
               <Box
+                className="ji-breathe ji-float"
                 style={{
                   padding: 18,
                   borderRadius: "50%",
@@ -271,6 +364,7 @@ export default function AdhanPage() {
               </Box>
 
               <Title order={1} fw={800} ta="center" c="white"
+                className="ji-scaleIn ji-delay-2"
                 style={{ textShadow: "0 0 30px rgba(20, 184, 166, 0.25)", fontSize: "2rem" }}
               >
                 {daily.data.imam || "-"}
@@ -281,6 +375,7 @@ export default function AdhanPage() {
                 variant="light"
                 color="cyan"
                 radius="xl"
+                className="ji-fadeIn ji-delay-3"
                 style={{
                   backdropFilter: "blur(8px)",
                   background: "rgba(0, 200, 255, 0.1)",
@@ -293,6 +388,7 @@ export default function AdhanPage() {
               {/* Iqomah info */}
               <Paper
                 p="md"
+                className="ji-fadeUp ji-delay-4 ji-shimmer"
                 style={{
                   ...glassInner,
                   background: "rgba(100, 149, 237, 0.08)",
@@ -302,6 +398,7 @@ export default function AdhanPage() {
               >
                 <Group justify="center" gap="sm">
                   <IconClockHour4 size={22} color="#6495ed"
+                    className="ji-glow"
                     style={{ filter: "drop-shadow(0 0 6px rgba(100,149,237,0.5))" }}
                   />
                   <Stack gap={0}>
@@ -317,8 +414,9 @@ export default function AdhanPage() {
             </Stack>
           </Card>
 
-          {/* ===== SHALAT BERIKUTNYA + WAKTU ADZAN ===== */}
+          {/* ===== SHALAT BERIKUTNYA + PILIH TANGGAL ===== */}
           <Box
+            className="ji-fadeUp ji-delay-2"
             style={{
               display: "grid",
               gridTemplateColumns: nextPrayer ? "1fr 1fr" : "1fr",
@@ -329,6 +427,7 @@ export default function AdhanPage() {
             {nextPrayer && (
               <Card
                 padding="lg"
+                className="ji-card"
                 style={{
                   ...glass,
                   background: prayerGlows[nextPrayer.key]?.bg || "rgba(255,255,255,0.05)",
@@ -338,6 +437,7 @@ export default function AdhanPage() {
                 <Stack gap="sm" h="100%" justify="space-between">
                   <Group gap="xs">
                     <IconBell size={18} color={prayerGlows[nextPrayer.key]?.accent}
+                      className="ji-glow"
                       style={{ filter: `drop-shadow(0 0 6px ${prayerGlows[nextPrayer.key]?.accent})` }}
                     />
                     <Text size="sm" c="dimmed">Shalat Berikutnya</Text>
@@ -346,6 +446,7 @@ export default function AdhanPage() {
                   <Stack gap="xs" align="center" style={{ flex: 1, justifyContent: "center" }}>
                     {(() => { const Icon = nextPrayer.Icon; return (
                       <Icon size={32} color={prayerGlows[nextPrayer.key]?.accent}
+                        className="ji-float"
                         style={{ filter: `drop-shadow(0 0 10px ${prayerGlows[nextPrayer.key]?.accent})` }}
                       />
                     ); })()}
@@ -362,6 +463,7 @@ export default function AdhanPage() {
                     variant="light"
                     color="cyan"
                     radius="xl"
+                    className="ji-countPulse"
                     style={{
                       backdropFilter: "blur(6px)",
                       background: "rgba(0, 200, 255, 0.12)",
@@ -378,6 +480,7 @@ export default function AdhanPage() {
             {/* Pilih Tanggal */}
             <Card
               padding="lg"
+              className="ji-card"
               style={{
                 ...glass,
                 boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
@@ -423,6 +526,7 @@ export default function AdhanPage() {
           {/* ===== JADWAL WAKTU SHALAT ===== */}
           <Card
             padding="lg"
+            className="ji-fadeUp ji-delay-3 ji-card"
             style={{
               ...glass,
               boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
@@ -434,7 +538,7 @@ export default function AdhanPage() {
                 <Text size="lg" fw={700} c="white">Waktu Adzan</Text>
               </Group>
               <Stack gap={6}>
-                {prayerList.map((p) => {
+                {prayerList.map((p, i) => {
                   const glow = prayerGlows[p.key] || prayerGlows.isha;
                   const Icon = p.Icon;
                   const isNext = nextPrayer?.key === p.key;
@@ -442,6 +546,7 @@ export default function AdhanPage() {
                     <Paper
                       key={p.key}
                       p="sm"
+                      className={`ji-slideLeft ji-delay-${Math.min(i + 1, 7)}`}
                       style={{
                         ...glassInner,
                         background: isNext ? glow?.bg : "rgba(255,255,255,0.02)",
@@ -456,6 +561,7 @@ export default function AdhanPage() {
                       <Group justify="space-between">
                         <Group gap="sm">
                           <Icon size={20} color={p.isPast ? "rgba(255,255,255,0.3)" : glow?.accent}
+                            className={isNext ? "ji-glow" : undefined}
                             style={{
                               filter: isNext ? `drop-shadow(0 0 6px ${glow?.accent})` : "none",
                             }}
@@ -465,7 +571,7 @@ export default function AdhanPage() {
                               {p.label}
                             </Text>
                             {isNext && (
-                              <Text size="xs" c={glow?.accent}>
+                              <Text size="xs" c={glow?.accent} className="ji-countPulse">
                                 {fmtCountdown(p.dt)} lagi
                               </Text>
                             )}
@@ -479,7 +585,7 @@ export default function AdhanPage() {
                           >
                             {p.time}
                           </Text>
-                          {isNext && <IconChevronRight size={16} color={glow?.accent} />}
+                          {isNext && <IconChevronRight size={16} color={glow?.accent} className="ji-glow" />}
                         </Group>
                       </Group>
                     </Paper>
@@ -492,6 +598,7 @@ export default function AdhanPage() {
           {/* ===== KALENDER IMAM ===== */}
           <Card
             padding="md"
+            className="ji-fadeUp ji-delay-4 ji-card"
             style={{
               ...glass,
               boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
@@ -517,7 +624,7 @@ export default function AdhanPage() {
                   }}
                 >
                   <Group gap={4}>
-                    <Box w={6} h={6} style={{ borderRadius: "50%", background: "#4ade80", boxShadow: "0 0 6px rgba(74,222,128,0.5)" }} />
+                    <Box w={6} h={6} className="ji-pulse" style={{ borderRadius: "50%", background: "#4ade80" }} />
                     <Text size="xs">= Ada Imam</Text>
                   </Group>
                 </Badge>
@@ -570,7 +677,7 @@ export default function AdhanPage() {
                           : today
                             ? "0 0 15px rgba(56, 189, 248, 0.08)"
                             : "none",
-                        transition: "all 0.2s ease",
+                        transition: "all 0.2s ease, transform 0.15s ease",
                       }}
                       onClick={() => setDate(d.toDate())}
                     >
@@ -579,10 +686,10 @@ export default function AdhanPage() {
                           <Box
                             w={6}
                             h={6}
+                            className="ji-pulse"
                             style={{
                               borderRadius: "50%",
                               background: "#4ade80",
-                              boxShadow: "0 0 8px rgba(74, 222, 128, 0.5)",
                             }}
                           />
                         )}
@@ -612,7 +719,7 @@ export default function AdhanPage() {
           </Card>
 
           {/* ===== JADWAL IMAM BULANAN ===== */}
-          <Stack gap="xs">
+          <Stack gap="xs" className="ji-fadeUp ji-delay-5">
             <Group gap="xs" pl="xs">
               <IconUsers size={20} color="rgba(255,255,255,0.4)" />
               <Text size="lg" fw={700} c="white">Jadwal Imam Bulanan</Text>
@@ -625,7 +732,7 @@ export default function AdhanPage() {
                 gap: 8,
               }}
             >
-              {Object.keys(monthly.data.imam).map((d) => {
+              {Object.keys(monthly.data.imam).map((d, i) => {
                 const tglNum = Number(d);
                 const iso = dayjs(
                   `${year}-${String(month).padStart(2, "0")}-${String(tglNum).padStart(2, "0")}`,
@@ -636,6 +743,7 @@ export default function AdhanPage() {
                   <Paper
                     key={d}
                     p="md"
+                    className="ji-card"
                     style={{
                       ...glassSubtle,
                       background: isToday
@@ -649,6 +757,7 @@ export default function AdhanPage() {
                       boxShadow: isToday
                         ? "0 0 25px rgba(20, 184, 166, 0.1)"
                         : "none",
+                      transition: "all 0.2s ease, transform 0.15s ease",
                     }}
                   >
                     <Stack gap="xs">
@@ -662,6 +771,7 @@ export default function AdhanPage() {
                         </Text>
                         {isToday && (
                           <Badge size="xs" variant="light" color="teal" radius="xl"
+                            className="ji-countPulse"
                             style={{
                               background: "rgba(20,184,166,0.12)",
                               border: "1px solid rgba(20,184,166,0.2)",
@@ -675,6 +785,7 @@ export default function AdhanPage() {
                       <Stack gap={4}>
                         <Group gap="xs">
                           <IconUserStar size={16} color={isToday ? "#14b8a6" : "rgba(255,255,255,0.35)"}
+                            className={isToday ? "ji-glow" : undefined}
                             style={{
                               filter: isToday ? "drop-shadow(0 0 4px rgba(20,184,166,0.4))" : "none",
                             }}
@@ -704,6 +815,7 @@ export default function AdhanPage() {
           {/* ===== HARI LIBUR ===== */}
           <Card
             padding="lg"
+            className="ji-fadeUp ji-delay-6 ji-card"
             style={{
               ...glass,
               boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
@@ -728,7 +840,11 @@ export default function AdhanPage() {
                     <Paper
                       key={idx}
                       p="sm"
-                      style={{ ...glassInner }}
+                      className="ji-card"
+                      style={{
+                        ...glassInner,
+                        transition: "all 0.2s ease, transform 0.15s ease",
+                      }}
                     >
                       <Group gap="xs" wrap="nowrap">
                         <IconCalendarStar
@@ -756,7 +872,9 @@ export default function AdhanPage() {
           </Card>
 
           {/* Footer */}
-          <Text size="xs" c="dimmed" ta="center" py="md" style={{ opacity: 0.4 }}>
+          <Text size="xs" c="dimmed" ta="center" py="md" className="ji-fadeIn ji-delay-7"
+            style={{ opacity: 0.4 }}
+          >
             Jadwal Imam Masjid
           </Text>
 
@@ -781,15 +899,17 @@ function ImamUserList() {
         gap: 6,
       }}
     >
-      {data?.data?.data?.map((u) => {
+      {data?.data?.data?.map((u, i) => {
         if (u.active === false) return null;
         return (
           <Paper
             key={u.id}
             p="sm"
+            className={`ji-scaleIn ji-card ji-delay-${Math.min(i + 1, 7)}`}
             style={{
               ...glassInner,
               textAlign: "center",
+              transition: "all 0.2s ease, transform 0.15s ease",
             }}
           >
             <Group gap="xs" justify="center">
