@@ -21,13 +21,21 @@ services:
       - "traefik.http.routers.jadwal-imam.tls.certresolver=letsencrypt"
       - "traefik.http.services.jadwal-imam.loadbalancer.server.port=3000"
     environment:
-      - DATABASE_URL="postgresql://bip:Production_123@localhost:5432/akuapa?schema=public"
-      - JWT_SECRET=super_sangat_rahasia_sekali
-      - BUN_PUBLIC_BASE_URL=http://localhost:3000
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
       - PORT=3000
     networks:
       - postgres-net
       - public-net
+  seed:
+    image: ghcr.io/bipprojectbali/jadwal-imam:prod-latest
+    container_name: jadwal-imam-seed
+    restart: "no"
+    entrypoint: ["sh", "-c", "bun prisma migrate deploy && bun prisma/seed.ts"]
+    environment:
+      - DATABASE_URL=${DIRECT_URL}
+    networks:
+      - postgres-net
 
 networks:
   postgres-net:
