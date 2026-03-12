@@ -1,19 +1,17 @@
-import Elysia, { t } from "elysia";
-import Swagger from "@elysiajs/swagger";
-import html from "./index.html";
-import { apiAuth } from "./server/middlewares/apiAuth";
-import Auth from "./server/routes/auth_route";
-import ApiKeyRoute from "./server/routes/apikey_route";
-import type { User } from "generated/prisma";
-import { LandingPage } from "./Landing";
-import { renderToReadableStream } from "react-dom/server";
 import { cors } from "@elysiajs/cors";
+import staticPlugin from "@elysiajs/static";
+import Swagger from "@elysiajs/swagger";
+import Elysia from "elysia";
+import type { User } from "generated/prisma";
 import packageJson from "./../package.json";
-import Configs from "./server/routes/configs_route";
+import html from "./index.html";
 import { prisma } from "./server/lib/prisma";
+import { apiAuth } from "./server/middlewares/apiAuth";
+import ApiKeyRoute from "./server/routes/apikey_route";
+import Auth from "./server/routes/auth_route";
+import Configs from "./server/routes/configs_route";
 import JadwalShalat from "./server/routes/jadwal_shalat";
 import { JadwalShalatAdmin } from "./server/routes/jadwal_shalat_admin";
-import staticPlugin from "@elysiajs/static";
 const PORT = process.env.PORT || 3000;
 const Docs = new Elysia().use(
   Swagger({

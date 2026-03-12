@@ -1,24 +1,36 @@
 services:
-  search:
-    image: searxng/searxng:latest
-    container_name: search
+  app:
+    image: ghcr.io/bipprojectbali/jadwal-imam:prod-latest
+    container_name: jadwal-imam
     restart: unless-stopped
+    cpus: "0.5"
+    mem_limit: 1g
+    mem_reservation: 512m
+    pids_limit: 512
+    cpu_shares: 512
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=public-net"
+      - "traefik.http.routers.jadwal-imam.rule=Host(`jadwal-imam.wibudev.com`)"
+      - "traefik.http.routers.jadwal-imam.entrypoints=websecure"
+      - "traefik.http.routers.jadwal-imam.tls.certresolver=letsencrypt"
+      - "traefik.http.services.jadwal-imam.loadbalancer.server.port=3000"
     environment:
-      - BASE_URL=https://cld-dkr-makuro-search.wibudev.com
-      - INSTANCE_NAME=WibuSearch
-      - AUTOCOMPLETE=google
-    volumes:
-      - ./data/searxng:/etc/searxng
+      - DATABASE_URL="postgresql://bip:Production_123@localhost:5432/akuapa?schema=public"
+      - JWT_SECRET=super_sangat_rahasia_sekali
+      - BUN_PUBLIC_BASE_URL=http://localhost:3000
+      - PORT=3000
     networks:
-      - search-network
-  seafile-frpc:
-    image: snowdreamtech/frpc:latest
-    container_name: seafile-frpc
-    restart: always
-    volumes:
-      - ./data/frpc/frpc.toml:/etc/frp/frpc.toml:ro
-    networks:
-      - search-network
-networks: 
-  search-network:
-    driver: bridge
+      - postgres-net
+      - public-net
+
+networks:
+  postgres-net:
+    external: true
+  public-net:
+    external: true
