@@ -1,0 +1,44 @@
+services:
+  app:
+    image: ghcr.io/bipprojectbali/jadwal-imam:prod-latest
+    container_name: jadwal-imam
+    restart: unless-stopped
+    cpus: "0.5"
+    mem_limit: 1g
+    mem_reservation: 512m
+    pids_limit: 512
+    cpu_shares: 512
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=public-net"
+      - "traefik.http.routers.jadwal-imam.rule=Host(`jadwal-imam.wibudev.com`)"
+      - "traefik.http.routers.jadwal-imam.entrypoints=websecure"
+      - "traefik.http.routers.jadwal-imam.tls.certresolver=letsencrypt"
+      - "traefik.http.services.jadwal-imam.loadbalancer.server.port=3000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - PORT=3000
+    networks:
+      - postgres-net
+      - public-net
+  seed:
+    image: ghcr.io/bipprojectbali/jadwal-imam:prod-latest
+    container_name: jadwal-imam-seed
+    restart: "no"
+    entrypoint: ["sh", "-c", "bun prisma migrate deploy && bun prisma/seed.ts"]
+    environment:
+      - DATABASE_URL=${DIRECT_URL}
+    networks:
+      - postgres-net
+
+networks:
+  postgres-net:
+    external: true
+  public-net:
+    external: true
