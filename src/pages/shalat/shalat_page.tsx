@@ -23,18 +23,22 @@ import duration from "dayjs/plugin/duration";
 import { useEffect, useMemo, useState } from "react";
 
 import {
-  IconCalendar,
+  IconBell,
   IconCalendarEvent,
   IconCalendarStar,
+  IconChevronRight,
   IconClock,
+  IconClockHour4,
   IconGift,
-  IconLayoutGrid,
   IconMoon,
+  IconStar,
+  IconStarFilled,
   IconSun,
   IconSunHigh,
   IconSunrise,
   IconSunset,
-  IconUser,
+  IconUsers,
+  IconUserStar,
 } from "@tabler/icons-react";
 
 import DateHolidays, { type HolidaysTypes } from "date-holidays";
@@ -44,16 +48,89 @@ import clientRoutes from "@/clientRoutes";
 dayjs.locale("id");
 dayjs.extend(duration);
 
+// ====== GLASSMORPHISM STYLES ======
+const glass: React.CSSProperties = {
+  background: "rgba(255, 255, 255, 0.05)",
+  backdropFilter: "blur(20px)",
+  WebkitBackdropFilter: "blur(20px)",
+  border: "1px solid rgba(255, 255, 255, 0.08)",
+  borderRadius: 24,
+  overflow: "hidden",
+};
+
+const glassSubtle: React.CSSProperties = {
+  background: "rgba(255, 255, 255, 0.03)",
+  backdropFilter: "blur(12px)",
+  WebkitBackdropFilter: "blur(12px)",
+  border: "1px solid rgba(255, 255, 255, 0.06)",
+  borderRadius: 18,
+};
+
+const glassInner: React.CSSProperties = {
+  background: "rgba(255, 255, 255, 0.04)",
+  backdropFilter: "blur(8px)",
+  WebkitBackdropFilter: "blur(8px)",
+  border: "1px solid rgba(255, 255, 255, 0.05)",
+  borderRadius: 14,
+};
+
+const prayerNames: Record<string, string> = {
+  fajr: "Subuh",
+  sunrise: "Syuruq",
+  dhuhr: "Dzuhur",
+  asr: "Ashar",
+  maghrib: "Maghrib",
+  isha: "Isya",
+};
+
+const prayerIcons: Record<string, any> = {
+  fajr: IconSunrise,
+  sunrise: IconSun,
+  dhuhr: IconSunHigh,
+  asr: IconSun,
+  maghrib: IconSunset,
+  isha: IconMoon,
+};
+
+const prayerGlows: Record<string, { bg: string; glow: string; accent: string }> = {
+  fajr: {
+    bg: "rgba(56, 189, 248, 0.08)",
+    glow: "0 0 40px rgba(56, 189, 248, 0.15)",
+    accent: "#38bdf8",
+  },
+  sunrise: {
+    bg: "rgba(251, 191, 36, 0.08)",
+    glow: "0 0 40px rgba(251, 191, 36, 0.15)",
+    accent: "#fbbf24",
+  },
+  dhuhr: {
+    bg: "rgba(250, 204, 21, 0.08)",
+    glow: "0 0 40px rgba(250, 204, 21, 0.12)",
+    accent: "#facc15",
+  },
+  asr: {
+    bg: "rgba(251, 146, 60, 0.08)",
+    glow: "0 0 40px rgba(251, 146, 60, 0.12)",
+    accent: "#fb923c",
+  },
+  maghrib: {
+    bg: "rgba(244, 63, 94, 0.08)",
+    glow: "0 0 40px rgba(244, 63, 94, 0.15)",
+    accent: "#f43f5e",
+  },
+  isha: {
+    bg: "rgba(139, 92, 246, 0.08)",
+    glow: "0 0 40px rgba(139, 92, 246, 0.15)",
+    accent: "#8b5cf6",
+  },
+};
+
 export function formatCountdown(dt: dayjs.Dayjs | null) {
   if (!dt) return "-";
-
   const now = dayjs();
   const diff = dt.diff(now);
-
   if (diff <= 0) return "Sudah lewat";
-
   const dur = dayjs.duration(diff);
-
   return `${dur.hours()}j ${dur.minutes()}m`;
 }
 
@@ -65,148 +142,88 @@ export default function AdhanPage() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // tahun & bulan yang dipakai
   const year = dayjs(date).year();
   const month = dayjs(date).month() + 1;
   const selectedDateStr = dayjs(date).format("YYYY-MM-DD");
 
-  // ambil data dari backend
   const fetchAll = async () => {
     setLoading(true);
-
     const bulan = await apiFetch.api["jadwal-sholat"].bulanan.get({
-      query: {
-        day: dayjs(date).date(),
-        month,
-        year,
-      },
+      query: { day: dayjs(date).date(), month, year },
     });
-
     const hari = await apiFetch.api["jadwal-sholat"].hari.get({
-      query: {
-        date: selectedDateStr,
-        holidays: [],
-      },
+      query: { date: selectedDateStr, holidays: [] },
     });
-
     const ad = await apiFetch.api["jadwal-sholat"].adhan.get({
-      query: {
-        date: selectedDateStr,
-        latitude: -8.65,
-        longitude: 115.2167,
-      },
+      query: { date: selectedDateStr, latitude: -8.65, longitude: 115.2167 },
     });
-
     setMonthly(bulan.data);
     setDaily(hari.data);
     setAdhan(ad.data);
-
     setLoading(false);
   };
 
   useEffect(() => {
     fetchAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date]);
 
-  // generate holidays tahun ini (DateHolidays)
   const holidays = useMemo(() => {
     const hd = new DateHolidays("ID");
     return hd.getHolidays(year) || [];
   }, [year]);
 
-  // helper: apakah tanggal tertentu (YYYY-MM-DD) merupakan hari libur?
-  const isHoliday = (d: string) => {
-    return holidays.some(
-      (h) =>
-        dayjs(h.date).format("YYYY-MM-DD") === dayjs(d).format("YYYY-MM-DD"),
+  const isHoliday = (d: string) =>
+    holidays.some(
+      (h) => dayjs(h.date).format("YYYY-MM-DD") === dayjs(d).format("YYYY-MM-DD"),
     );
-  };
 
-  // ========== Calendar grid (month view) ==========
-  // buat array days untuk bulan ini (1..n) + offset untuk memulai hari pada weekday yg benar
   const monthGrid = useMemo(() => {
     const first = dayjs(`${year}-${String(month).padStart(2, "0")}-01`);
     const daysInMonth = first.daysInMonth();
-    const startWeekday = first.day(); // 0 = Sunday ... 6 = Saturday
+    const startWeekday = first.day();
     const cells: Array<{ date: dayjs.Dayjs | null }> = [];
-
-    // fill leading blanks
-    for (let i = 0; i < startWeekday; i++) {
-      cells.push({ date: null });
-    }
-
-    // fill actual days
-    for (let d = 1; d <= daysInMonth; d++) {
+    for (let i = 0; i < startWeekday; i++) cells.push({ date: null });
+    for (let d = 1; d <= daysInMonth; d++)
       cells.push({
-        date: dayjs(
-          `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
-        ),
+        date: dayjs(`${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`),
       });
-    }
-
-    // fill trailing blanks to complete week rows (7 cols)
-    while (cells.length % 7 !== 0) {
-      cells.push({ date: null });
-    }
-
+    while (cells.length % 7 !== 0) cells.push({ date: null });
     return { cells, daysInMonth, startWeekday };
   }, [year, month]);
 
-
-  // ========== Prayer cards (per waktu) ==========
   const prayerList = useMemo(() => {
-    // adhan.adhan is expected: { fajr, sunrise, dhuhr, asr, maghrib, isha }
     if (!adhan || !adhan.adhan) return [];
-    const mapIcon: Record<string, any> = {
-      fajr: IconSunrise,
-      sunrise: IconSun,
-      dhuhr: IconSunHigh ?? IconSun,
-      asr: IconSun,
-      maghrib: IconSunset ?? IconSun,
-      isha: IconMoon,
-    };
-
     return Object.entries(adhan.adhan).map(([key, timeStr]) => {
-      // build full datetime for the selected date
       const dt = dayjs(`${selectedDateStr} ${timeStr}`, "YYYY-MM-DD HH:mm");
-      const now = dayjs();
-      const diffMs = dt.diff(now);
+      const diffMs = dt.diff(dayjs());
       const isPast = diffMs <= 0;
-      const until = isPast
-        ? null
-        : dayjs.duration
-          ? dayjs.duration(diffMs)
-          : null; // dayjs duration optional
       return {
-        name: key,
-        time: timeStr,
+        key,
+        label: prayerNames[key] || key,
+        time: timeStr as string,
         dt,
         isPast,
-        until,
-        Icon: mapIcon[key] ?? IconClock,
+        Icon: prayerIcons[key] ?? IconClock,
       };
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adhan, selectedDateStr]);
 
-  // small util for countdown string
-  const formatCountdown = (dt: dayjs.Dayjs) => {
-    const now = dayjs();
-    const diff = dt.diff(now);
+  const nextPrayer = prayerList.find((p) => !p.isPast);
+
+  const fmtCountdown = (dt: dayjs.Dayjs) => {
+    const diff = dt.diff(dayjs());
     if (diff <= 0) return "Sudah lewat";
     const minutes = Math.floor(diff / (1000 * 60));
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
-    if (hours > 0) return `dalam ${hours}j ${mins}m`;
-    return `dalam ${mins}m`;
+    if (hours > 0) return `${hours}j ${mins}m`;
+    return `${mins}m`;
   };
 
-  // safety guards if data missing
   if (!monthly || !daily || !adhan) {
     return (
       <Container size="md" w="100%">
-        <Stack gap="xl" py="md">
+        <Stack gap="xl" py="xl">
           <Skeleton height={20} radius="sm" />
           <Skeleton height={200} radius="md" />
           <Skeleton height={300} radius="md" />
@@ -215,50 +232,168 @@ export default function AdhanPage() {
     );
   }
 
-  const landscapeGradient =
-    "linear-gradient(135deg, #091622ff, #475b71ff,  #706420ff, #0d3e0cff)";
   return (
-    <Box w={"100%"} bg={landscapeGradient}>
-      <Container size="md" w="100%" px="sm" >
-        <Stack gap="xl" py="md">
-          <Stack justify="apart" align="center">
-            <Stack justify="center" align="center">
-              <IconCalendar
-                color="cyan"
-                size={"6rem"}
-                stroke={1.3}
-                onClick={() => navigate("/")}
-              />
-              <Title order={2} fw={700}>
-                Jadwal Sholat & Imam
-              </Title>
-              <Text size="xs" c="dimmed">
-                {dayjs(date).locale("id").format("dddd, DD MMMM YYYY")}
+    <Box
+      w="100%"
+      mih="100vh"
+      py="lg"
+      style={{
+        background: "radial-gradient(ellipse at 20% 0%, rgba(20, 184, 166, 0.08) 0%, transparent 50%), radial-gradient(ellipse at 80% 100%, rgba(139, 92, 246, 0.06) 0%, transparent 50%), radial-gradient(ellipse at 50% 50%, rgba(56, 189, 248, 0.04) 0%, transparent 60%), #050508",
+      }}
+    >
+      <Container size="md" w="100%" px="md">
+        <Stack gap="md">
+
+          {/* ===== HERO: IMAM HARI INI ===== */}
+          <Card
+            padding="xl"
+            style={{
+              ...glass,
+              background: "rgba(20, 184, 166, 0.05)",
+              boxShadow: "0 8px 40px rgba(0, 0, 0, 0.3), 0 0 80px rgba(20, 184, 166, 0.06), inset 0 1px 0 rgba(255,255,255,0.06)",
+            }}
+          >
+            <Stack align="center" gap="md">
+              <Text size="sm" c="dimmed" tt="uppercase" fw={600} style={{ letterSpacing: 2 }}>
+                Imam Shalat Hari Ini
               </Text>
+
+              <Box
+                style={{
+                  padding: 18,
+                  borderRadius: "50%",
+                  background: "rgba(20, 184, 166, 0.12)",
+                  border: "1px solid rgba(20, 184, 166, 0.2)",
+                  boxShadow: "0 0 40px rgba(20, 184, 166, 0.2), 0 0 80px rgba(20, 184, 166, 0.08)",
+                }}
+              >
+                <IconUserStar size={44} color="#14b8a6" stroke={1.5} />
+              </Box>
+
+              <Title order={1} fw={800} ta="center" c="white"
+                style={{ textShadow: "0 0 30px rgba(20, 184, 166, 0.25)", fontSize: "2rem" }}
+              >
+                {daily.data.imam || "-"}
+              </Title>
+
+              <Badge
+                size="lg"
+                variant="light"
+                color="cyan"
+                radius="xl"
+                style={{
+                  backdropFilter: "blur(8px)",
+                  background: "rgba(0, 200, 255, 0.1)",
+                  border: "1px solid rgba(0, 200, 255, 0.15)",
+                }}
+              >
+                {dayjs(date).locale("id").format("dddd, DD MMMM YYYY")}
+              </Badge>
+
+              {/* Iqomah info */}
+              <Paper
+                p="md"
+                style={{
+                  ...glassInner,
+                  background: "rgba(100, 149, 237, 0.08)",
+                  width: "100%",
+                  maxWidth: 280,
+                }}
+              >
+                <Group justify="center" gap="sm">
+                  <IconClockHour4 size={22} color="#6495ed"
+                    style={{ filter: "drop-shadow(0 0 6px rgba(100,149,237,0.5))" }}
+                  />
+                  <Stack gap={0}>
+                    <Text size="xs" c="dimmed">Iqomah</Text>
+                    <Text size="xl" fw={800} c="blue.3"
+                      style={{ textShadow: "0 0 15px rgba(100,149,237,0.3)" }}
+                    >
+                      {daily.data.ikomah || "-"}
+                    </Text>
+                  </Stack>
+                </Group>
+              </Paper>
             </Stack>
-          </Stack>
+          </Card>
 
-          {JadwalHariIni(prayerList, formatCountdown)}
+          {/* ===== SHALAT BERIKUTNYA + WAKTU ADZAN ===== */}
+          <Box
+            style={{
+              display: "grid",
+              gridTemplateColumns: nextPrayer ? "1fr 1fr" : "1fr",
+              gap: 10,
+            }}
+          >
+            {/* Shalat Berikutnya */}
+            {nextPrayer && (
+              <Card
+                padding="lg"
+                style={{
+                  ...glass,
+                  background: prayerGlows[nextPrayer.key]?.bg || "rgba(255,255,255,0.05)",
+                  boxShadow: prayerGlows[nextPrayer.key]?.glow || "none",
+                }}
+              >
+                <Stack gap="sm" h="100%" justify="space-between">
+                  <Group gap="xs">
+                    <IconBell size={18} color={prayerGlows[nextPrayer.key]?.accent}
+                      style={{ filter: `drop-shadow(0 0 6px ${prayerGlows[nextPrayer.key]?.accent})` }}
+                    />
+                    <Text size="sm" c="dimmed">Shalat Berikutnya</Text>
+                  </Group>
 
-          <SimpleGrid cols={{
-            base: 1,
-            md: 2
-          }}>
-            {JadwalImamHariIni(date, daily, adhan)}
+                  <Stack gap="xs" align="center" style={{ flex: 1, justifyContent: "center" }}>
+                    {(() => { const Icon = nextPrayer.Icon; return (
+                      <Icon size={32} color={prayerGlows[nextPrayer.key]?.accent}
+                        style={{ filter: `drop-shadow(0 0 10px ${prayerGlows[nextPrayer.key]?.accent})` }}
+                      />
+                    ); })()}
+                    <Text size="xl" fw={800} c="white">
+                      {nextPrayer.label}
+                    </Text>
+                    <Text size="lg" fw={700} c="white" style={{ opacity: 0.8 }}>
+                      {nextPrayer.time}
+                    </Text>
+                  </Stack>
+
+                  <Badge
+                    size="lg"
+                    variant="light"
+                    color="cyan"
+                    radius="xl"
+                    style={{
+                      backdropFilter: "blur(6px)",
+                      background: "rgba(0, 200, 255, 0.12)",
+                      border: "1px solid rgba(0, 200, 255, 0.2)",
+                      alignSelf: "center",
+                    }}
+                  >
+                    {fmtCountdown(nextPrayer.dt)} lagi
+                  </Badge>
+                </Stack>
+              </Card>
+            )}
+
+            {/* Pilih Tanggal */}
             <Card
               padding="lg"
-              radius="md"
-              bg={"linear-gradient(135deg, #614c34ff, #596c2fff)"}
+              style={{
+                ...glass,
+                boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
+              }}
             >
-              <Stack gap="xs">
-                <Group gap={6}>
-                  <IconCalendarEvent size={"2rem"} />
-                  <Text size="2rem" fw={700}>Pilih Tanggal</Text>
+              <Stack gap="sm" align="center">
+                <Group gap="xs">
+                  <IconCalendarEvent size={18} color="rgba(255,255,255,0.4)" />
+                  <Text size="sm" c="dimmed">Pilih Tanggal</Text>
                 </Group>
                 <DatePicker
                   locale="id"
+                  size="xs"
                   renderDay={(d) => (
                     <Text
+                      size="sm"
                       c={
                         dayjs(d).isSame(dayjs(date), "day")
                           ? "green"
@@ -275,433 +410,397 @@ export default function AdhanPage() {
                   maxDate={dayjs().add(40, "year").toDate()}
                   onChange={(d) => setDate(dayjs(d).toDate())}
                   onYearSelect={(d) =>
-                    setDate(
-                      dayjs(date)
-                        .year(dayjs(d).year())
-                        .toDate()
-                    )
+                    setDate(dayjs(date).year(dayjs(d).year()).toDate())
                   }
                   onMonthSelect={(d) =>
-                    setDate(
-                      dayjs(date)
-                        .month(dayjs(d).month())
-                        .toDate()
-                    )
+                    setDate(dayjs(date).month(dayjs(d).month()).toDate())
                   }
                 />
-
               </Stack>
             </Card>
-          </SimpleGrid>
-          {RingkasanBulalan(monthly, year, month, isHoliday)}
-          {CalendarTable(date, monthGrid, isHoliday, monthly, setDate, holidays)}
-          {FullYearHoliday(year, holidays)}
+          </Box>
+
+          {/* ===== JADWAL WAKTU SHALAT ===== */}
+          <Card
+            padding="lg"
+            style={{
+              ...glass,
+              boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
+            }}
+          >
+            <Stack gap="md">
+              <Group gap="xs">
+                <IconBell size={20} color="rgba(255,255,255,0.4)" />
+                <Text size="lg" fw={700} c="white">Waktu Adzan</Text>
+              </Group>
+              <Stack gap={6}>
+                {prayerList.map((p) => {
+                  const glow = prayerGlows[p.key] || prayerGlows.isha;
+                  const Icon = p.Icon;
+                  const isNext = nextPrayer?.key === p.key;
+                  return (
+                    <Paper
+                      key={p.key}
+                      p="sm"
+                      style={{
+                        ...glassInner,
+                        background: isNext ? glow?.bg : "rgba(255,255,255,0.02)",
+                        border: isNext
+                          ? `1px solid ${glow?.accent}30`
+                          : "1px solid rgba(255,255,255,0.04)",
+                        boxShadow: isNext ? glow?.glow : "none",
+                        opacity: p.isPast ? 0.5 : 1,
+                        transition: "all 0.2s ease",
+                      }}
+                    >
+                      <Group justify="space-between">
+                        <Group gap="sm">
+                          <Icon size={20} color={p.isPast ? "rgba(255,255,255,0.3)" : glow?.accent}
+                            style={{
+                              filter: isNext ? `drop-shadow(0 0 6px ${glow?.accent})` : "none",
+                            }}
+                          />
+                          <Stack gap={0}>
+                            <Text size="md" fw={isNext ? 700 : 500} c={p.isPast ? "dimmed" : "white"}>
+                              {p.label}
+                            </Text>
+                            {isNext && (
+                              <Text size="xs" c={glow?.accent}>
+                                {fmtCountdown(p.dt)} lagi
+                              </Text>
+                            )}
+                          </Stack>
+                        </Group>
+                        <Group gap="xs">
+                          <Text size="md" fw={700} c={p.isPast ? "dimmed" : "white"}
+                            style={{
+                              textShadow: isNext ? `0 0 10px ${glow?.accent}40` : "none",
+                            }}
+                          >
+                            {p.time}
+                          </Text>
+                          {isNext && <IconChevronRight size={16} color={glow?.accent} />}
+                        </Group>
+                      </Group>
+                    </Paper>
+                  );
+                })}
+              </Stack>
+            </Stack>
+          </Card>
+
+          {/* ===== KALENDER IMAM ===== */}
+          <Card
+            padding="md"
+            style={{
+              ...glass,
+              boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
+            }}
+          >
+            <Stack gap="md">
+              <Group justify="space-between">
+                <Group gap="xs">
+                  <IconCalendarEvent size={20} color="rgba(255,255,255,0.4)" />
+                  <Text size="lg" fw={700} c="white">
+                    {dayjs(date).format("MMMM YYYY")}
+                  </Text>
+                </Group>
+                <Badge
+                  size="sm"
+                  variant="light"
+                  color="teal"
+                  radius="xl"
+                  style={{
+                    backdropFilter: "blur(6px)",
+                    background: "rgba(20, 184, 166, 0.1)",
+                    border: "1px solid rgba(20, 184, 166, 0.15)",
+                  }}
+                >
+                  <Group gap={4}>
+                    <Box w={6} h={6} style={{ borderRadius: "50%", background: "#4ade80", boxShadow: "0 0 6px rgba(74,222,128,0.5)" }} />
+                    <Text size="xs">= Ada Imam</Text>
+                  </Group>
+                </Badge>
+              </Group>
+
+              <SimpleGrid cols={7} p="xs" style={{
+                ...glassInner,
+                background: "rgba(255,255,255,0.03)",
+              }}>
+                {["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"].map((w) => (
+                  <Text fw={700} key={w} size="sm" ta="center" c="dimmed">{w}</Text>
+                ))}
+              </SimpleGrid>
+
+              <SimpleGrid cols={7} spacing={4}>
+                {monthGrid.cells.map((cell, idx) => {
+                  if (!cell.date) return <div key={idx} />;
+                  const d = cell.date;
+                  const dayNum = d.date();
+                  const iso = d.format("YYYY-MM-DD");
+                  const today = d.isSame(dayjs(), "day");
+                  const holiday = isHoliday(iso);
+                  const imamName = monthly.data.imam?.[String(dayNum)];
+                  const hasImam = Boolean(imamName);
+                  const selected = d.isSame(dayjs(date), "day");
+                  return (
+                    <UnstyledButton
+                      key={idx}
+                      style={{
+                        textAlign: "center",
+                        padding: 6,
+                        borderRadius: 14,
+                        minHeight: 48,
+                        background: selected
+                          ? "rgba(0, 200, 255, 0.12)"
+                          : today
+                            ? "rgba(56, 189, 248, 0.08)"
+                            : "rgba(255,255,255,0.02)",
+                        backdropFilter: selected || today ? "blur(10px)" : undefined,
+                        WebkitBackdropFilter: selected || today ? "blur(10px)" : undefined,
+                        border: holiday
+                          ? "1px solid rgba(244, 63, 94, 0.35)"
+                          : selected
+                            ? "1px solid rgba(0, 200, 255, 0.25)"
+                            : today
+                              ? "1px solid rgba(56, 189, 248, 0.15)"
+                              : "1px solid transparent",
+                        boxShadow: selected
+                          ? "0 0 20px rgba(0, 200, 255, 0.12)"
+                          : today
+                            ? "0 0 15px rgba(56, 189, 248, 0.08)"
+                            : "none",
+                        transition: "all 0.2s ease",
+                      }}
+                      onClick={() => setDate(d.toDate())}
+                    >
+                      <Stack gap={2} align="center" justify="center">
+                        {hasImam && (
+                          <Box
+                            w={6}
+                            h={6}
+                            style={{
+                              borderRadius: "50%",
+                              background: "#4ade80",
+                              boxShadow: "0 0 8px rgba(74, 222, 128, 0.5)",
+                            }}
+                          />
+                        )}
+                        <Text
+                          size="md"
+                          fw={today || selected ? 800 : 500}
+                          c={
+                            holiday ? "red"
+                              : today ? "cyan"
+                                : selected ? "cyan.3"
+                                  : "white"
+                          }
+                          style={{
+                            textShadow: today || selected
+                              ? "0 0 12px rgba(0, 200, 255, 0.3)"
+                              : undefined,
+                          }}
+                        >
+                          {dayNum}
+                        </Text>
+                      </Stack>
+                    </UnstyledButton>
+                  );
+                })}
+              </SimpleGrid>
+            </Stack>
+          </Card>
+
+          {/* ===== JADWAL IMAM BULANAN ===== */}
+          <Stack gap="xs">
+            <Group gap="xs" pl="xs">
+              <IconUsers size={20} color="rgba(255,255,255,0.4)" />
+              <Text size="lg" fw={700} c="white">Jadwal Imam Bulanan</Text>
+            </Group>
+            <ImamUserList />
+            <Box
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(2, 1fr)",
+                gap: 8,
+              }}
+            >
+              {Object.keys(monthly.data.imam).map((d) => {
+                const tglNum = Number(d);
+                const iso = dayjs(
+                  `${year}-${String(month).padStart(2, "0")}-${String(tglNum).padStart(2, "0")}`,
+                ).format("YYYY-MM-DD");
+                const holiday = isHoliday(iso);
+                const isToday = dayjs(iso).isSame(dayjs(), "day");
+                return (
+                  <Paper
+                    key={d}
+                    p="md"
+                    style={{
+                      ...glassSubtle,
+                      background: isToday
+                        ? "rgba(20, 184, 166, 0.1)"
+                        : "rgba(255,255,255,0.03)",
+                      border: isToday
+                        ? "1px solid rgba(20, 184, 166, 0.2)"
+                        : holiday
+                          ? "1px solid rgba(244, 63, 94, 0.25)"
+                          : "1px solid rgba(255,255,255,0.05)",
+                      boxShadow: isToday
+                        ? "0 0 25px rgba(20, 184, 166, 0.1)"
+                        : "none",
+                    }}
+                  >
+                    <Stack gap="xs">
+                      <Group justify="space-between">
+                        <Text
+                          size="sm"
+                          fw={isToday ? 800 : 600}
+                          c={holiday ? "red.4" : isToday ? "cyan" : "dimmed"}
+                        >
+                          {dayjs(iso).format("ddd, DD MMM")}
+                        </Text>
+                        {isToday && (
+                          <Badge size="xs" variant="light" color="teal" radius="xl"
+                            style={{
+                              background: "rgba(20,184,166,0.12)",
+                              border: "1px solid rgba(20,184,166,0.2)",
+                            }}
+                          >
+                            Hari Ini
+                          </Badge>
+                        )}
+                      </Group>
+                      <Divider color="dark.6" style={{ opacity: 0.2 }} />
+                      <Stack gap={4}>
+                        <Group gap="xs">
+                          <IconUserStar size={16} color={isToday ? "#14b8a6" : "rgba(255,255,255,0.35)"}
+                            style={{
+                              filter: isToday ? "drop-shadow(0 0 4px rgba(20,184,166,0.4))" : "none",
+                            }}
+                          />
+                          <Text size="md" fw={700} c={isToday ? "teal" : "white"}
+                            style={{
+                              textShadow: isToday ? "0 0 12px rgba(20,184,166,0.25)" : "none",
+                            }}
+                          >
+                            {monthly.data.imam[d]}
+                          </Text>
+                        </Group>
+                        <Group gap="xs">
+                          <IconClockHour4 size={16} color="rgba(255,255,255,0.3)" />
+                          <Text size="sm" fw={500} c="dimmed">
+                            Iqomah: {monthly.data.ikomah[d]}
+                          </Text>
+                        </Group>
+                      </Stack>
+                    </Stack>
+                  </Paper>
+                );
+              })}
+            </Box>
+          </Stack>
+
+          {/* ===== HARI LIBUR ===== */}
+          <Card
+            padding="lg"
+            style={{
+              ...glass,
+              boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
+            }}
+          >
+            <Stack gap="md">
+              <Group gap="xs">
+                <IconGift size={20} color="rgba(255,255,255,0.4)" />
+                <Text size="lg" fw={700} c="white">
+                  Hari Libur Nasional {year}
+                </Text>
+              </Group>
+              {holidays.length > 0 && (
+                <Box
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(2, 1fr)",
+                    gap: 6,
+                  }}
+                >
+                  {holidays.map((h, idx) => (
+                    <Paper
+                      key={idx}
+                      p="sm"
+                      style={{ ...glassInner }}
+                    >
+                      <Group gap="xs" wrap="nowrap">
+                        <IconCalendarStar
+                          size={16}
+                          color="#14b8a6"
+                          style={{
+                            flexShrink: 0,
+                            filter: "drop-shadow(0 0 4px rgba(20, 184, 166, 0.4))",
+                          }}
+                        />
+                        <Stack gap={0}>
+                          <Text size="sm" c="white" fw={600}>
+                            {dayjs(h.date).format("DD MMM")}
+                          </Text>
+                          <Text size="xs" c="dimmed" lineClamp={1}>
+                            {h.name}
+                          </Text>
+                        </Stack>
+                      </Group>
+                    </Paper>
+                  ))}
+                </Box>
+              )}
+            </Stack>
+          </Card>
+
+          {/* Footer */}
+          <Text size="xs" c="dimmed" ta="center" py="md" style={{ opacity: 0.4 }}>
+            Jadwal Imam Masjid
+          </Text>
+
         </Stack>
       </Container>
     </Box>
   );
 }
 
-function JadwalImamHariIni(date: Date | null, daily: any, adhan: any) {
-  return (
-    <Card padding="lg" radius="md" bg={"dark.9"}>
-      <Stack gap="20">
-        <Stack>
-          <Group>
-            <IconUser size={"2rem"} />
-            <Text size="2rem" fw={700}>
-              Jadwal Imam Hari Ini
-            </Text>
-          </Group>
-
-          <Text size="sm" c="dimmed">
-            {dayjs(date).format("dddd, DD MMMM YYYY")}
-          </Text>
-        </Stack>
-
-        <Stack>
-          <Stack gap={"xs"}>
-            <Flex gap={"md"}>
-              <IconUser size={"3rem"} />
-              <Text fw={700} c={"teal"} size="3rem">{daily.data.imam || "-"}</Text>
-            </Flex>
-            <Text c={"dimmed"}>Imam</Text>
-          </Stack>
-          <Divider c={"green"} />
-          <Stack gap={"xs"}>
-            <Flex gap={"md"}>
-              <IconClock size={"2rem"} />
-              <Text c={"blue.4"} size="2rem">{daily.data.ikomah || "-"}</Text>
-            </Flex>
-            <Text c={"dimmed"}>Ikomah</Text>
-          </Stack>
-        </Stack>
-
-        <Text size="1.5rem" fw={700}>Waktu Adhan</Text>
-        <Stack gap={6} c={"dimmed"}>
-          {Object.entries(adhan.adhan).map(([k, v]) => (
-            <Group key={k} justify="apart">
-              <Text w={100} style={{ textTransform: "capitalize" }}>
-                {k}
-              </Text>
-              <Text fw={700}>{v as string}</Text>
-            </Group>
-          ))}
-        </Stack>
-      </Stack>
-    </Card>
-  );
-}
-
-function CalendarTable(
-  date: Date | null,
-  monthGrid: {
-    cells: { date: dayjs.Dayjs | null }[];
-    daysInMonth: number;
-    startWeekday: 0 | 1 | 2 | 3 | 4 | 5 | 6;
-  },
-  isHoliday: (d: string) => boolean,
-  monthly: any,
-  setDate: any,
-  holidays: HolidaysTypes.Holiday[],
-) {
-  return (
-    <Card
-      bg={"dark.9"}
-      padding="md"
-      radius="lg"
-      shadow="sm"
-      style={{
-        overflowX: "scroll",
-      }}
-    >
-      <Stack miw={700} gap="60">
-        <Stack justify="apart" gap={6}>
-          <Group>
-            <IconLayoutGrid size={"2rem"} />
-            <Text size={"2rem"} fw={700}>
-              Kalender {dayjs(date).format("MMMM YYYY")}
-            </Text>
-          </Group>
-
-          <Text size="sm" c="dimmed">
-            Klik tanggal untuk lihat detail
-          </Text>
-        </Stack>
-
-        <Stack>
-          <SimpleGrid cols={7} p={"md"} bg={"dark.8"}>
-            {["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"].map((w) => (
-              <Text fw={700} key={w}>{w}</Text>
-            ))}
-          </SimpleGrid>
-
-          <SimpleGrid cols={7}>
-            {monthGrid.cells.map((cell, idx) => {
-              if (!cell.date) {
-                return <div key={idx} style={{ minHeight: 80 }} />;
-              }
-              const d = cell.date;
-              const dayNum = d.date();
-              const iso = d.format("YYYY-MM-DD");
-              const today = d.isSame(dayjs(), "day");
-              const holiday = isHoliday(iso);
-              const hasImam = Boolean(
-                monthly.data.imam && monthly.data.imam[String(dayNum)],
-              );
-              return (
-                <UnstyledButton
-                  bg={"dark"}
-                  key={idx}
-                  style={{
-                    textAlign: "left",
-                    padding: 10,
-                    borderRadius: 12,
-                    minHeight: 80,
-                    background: today ? "rgba(5, 51, 104, 0.39)" : undefined,
-                    border: holiday ? "1px solid rgba(130, 61, 6, 1)" : undefined,
-                    boxShadow: today
-                      ? "0 6px 18px rgba(6,120,250,0.08)"
-                      : undefined,
-                  }}
-                  onClick={() => {
-                    setDate(d.toDate());
-                  }}
-                >
-                  <Stack
-                    gap={0}
-                    h={"100%"}
-                    justify="space-around"
-                    align="stretch"
-                  >
-                    <Group justify="end">
-                      {
-                        <Badge
-                          size="xs"
-                          bg={hasImam ? "green.4" : "gray"}
-                          variant="light"
-                        />
-                      }
-                    </Group>
-                    <Box>
-                      <Text
-                        size="2rem"
-                        style={{
-                          width: 34,
-                          height: 34,
-                          borderRadius: 8,
-                          display: "grid",
-                          placeItems: "center",
-                          fontWeight: 700,
-                          background: holiday
-                            ? "rgba(220,38,38,0.06)"
-                            : "transparent",
-                          color: holiday
-                            ? "rgb(220,38,38)"
-                            : today
-                              ? "rgb(6,120,250)"
-                              : undefined,
-                        }}
-                      >
-                        {dayNum}
-                      </Text>
-
-                      <div>
-                        <div
-                          style={{
-                            fontSize: 12,
-                            fontWeight: 600,
-                            textTransform: "capitalize",
-                          }}
-                        >
-                          {d.format("dddd")}
-                        </div>
-                        <div style={{ fontSize: 11, color: "#6b7280" }}>
-                          {holiday
-                            ? holidays.find(
-                              (h) => dayjs(h.date).format("YYYY-MM-DD") === iso,
-                            )?.name
-                            : ""}
-                        </div>
-                      </div>
-                    </Box>
-                  </Stack>
-
-                  {/* small footer area */}
-                  <div
-                    style={{
-                      marginTop: 8,
-                      display: "flex",
-                      gap: 8,
-                      alignItems: "center",
-                    }}
-                  ></div>
-                </UnstyledButton>
-              );
-            })}
-          </SimpleGrid>
-        </Stack>
-      </Stack>
-    </Card>
-  );
-}
-
-function RingkasanBulalan(
-  monthly: any,
-  year: number,
-  month: number,
-  isHoliday: (d: string) => boolean,
-) {
-  return (
-    <Card padding="md" radius="md" mt="md" bg={"dark.9"}>
-      <Stack gap="70">
-        <Group justify="apart">
-          <Group>
-            <IconCalendar size={"2rem"} />
-            <Text size="2rem" fw={700}>Ringkasan Bulanan</Text>
-          </Group>
-        </Group>
-
-        <UserList />
-        <SimpleGrid
-          cols={{
-            base: 2,
-            md: 3,
-          }}
-        >
-          {Object.keys(monthly.data.imam).map((d) => {
-            const tglNum = Number(d);
-            const iso = dayjs(
-              `${year}-${String(month).padStart(2, "0")}-${String(tglNum).padStart(2, "0")}`,
-            ).format("YYYY-MM-DD");
-            const holiday = isHoliday(iso);
-            const isToday = dayjs(iso).isSame(dayjs(), "day");
-            return (
-              <Paper
-                radius="xl"
-                key={d}
-                p={"md"}
-                c={holiday ? "red.9" : isToday ? "cyan" : "grey.9"}
-                bg={"dark.9"}
-                withBorder
-              >
-                <Stack>
-                  <Group>
-                    <Text size="2rem" fw={isToday ? 700 : 500}>
-                      {dayjs(iso).format("ddd, DD")}
-                    </Text>
-                  </Group>
-
-                  <Stack gap={0}>
-                    <Group>
-                      <IconUser size={16} />
-                      <Text fw={700}>{monthly.data.imam[d]}</Text>
-                    </Group>
-                    <Group>
-                      <IconClock size={16} />
-                      <Text fw={700}>{monthly.data.ikomah[d]}</Text>
-                    </Group>
-                  </Stack>
-                </Stack>
-              </Paper>
-            );
-          })}
-        </SimpleGrid>
-      </Stack>
-    </Card>
-  );
-}
-
-function FullYearHoliday(year: number, holidays: HolidaysTypes.Holiday[]) {
-  return (
-    <Card padding="xl" radius="lg" shadow="md" bg={"dark.9"}>
-      <Stack gap="md">
-        <Group gap={6}>
-          <IconGift size={"2rem"} />
-          <Title size={"2rem"} order={4} fw={700}>
-            Hari Libur Nasional Tahun {year}
-          </Title>
-        </Group>
-        {holidays.length > 0 && (
-          <Stack c={"teal.9"}>
-            <SimpleGrid
-              cols={{
-                base: 2,
-                md: 3,
-              }}
-            >
-              {holidays.map((h, idx) => {
-                const tgl = dayjs(h.date).format("DD MMMM YYYY");
-                return (
-                  <Flex key={idx} gap={"md"} align="center">
-                    <IconCalendarStar size={16} />
-                    <Text>{tgl}</Text>
-                  </Flex>
-                );
-              })}
-            </SimpleGrid>
-          </Stack>
-        )}
-      </Stack>
-    </Card>
-  );
-}
-
-const prayerGradients = {
-  fajr: "linear-gradient(135deg, #6d7f8c, #778f8a, #7f998a)",
-  sunrise: "linear-gradient(135deg, #8d7a63, #9a846c, #a28c74)",
-  dhuhr: "linear-gradient(135deg, #647a69, #607463, #5c6a75)",
-  asr: "linear-gradient(135deg, #767c5d, #7f845f, #888d62)",
-  maghrib: "linear-gradient(135deg, #7c5f5f, #875f62, #8f6166)",
-  isha: "linear-gradient(135deg, #595f7a, #505672, #484e6b)"
-};
-
-function JadwalHariIni(
-  prayerList: {
-    name: string;
-    time: unknown;
-    dt: dayjs.Dayjs;
-    isPast: boolean;
-    until: duration.Duration | null;
-    Icon: any;
-  }[],
-  formatCountdown: (dt: dayjs.Dayjs) => string,
-) {
-  return (
-    <Stack gap="sm">
-      <Title order={4}>Jadwal Shalat Hari Ini</Title>
-      <SimpleGrid
-        cols={{
-          base: 2,
-          md: 4,
-        }}
-      >
-        {prayerList.map((p) => {
-          const Icon = p.Icon;
-          return (
-            <Card key={p.name} radius="lg" bg={prayerGradients[p.name as keyof typeof prayerGradients]}>
-              <Stack
-                gap="xs"
-                align="stretch"
-                justify="space-between"
-                h={"100%"}
-              >
-                <Group justify="apart" align="center">
-                  <Group>
-                    <Icon size={22} />
-                    <Text fw={700} style={{ textTransform: "capitalize" }}>
-                      {p.name}
-                    </Text>
-                  </Group>
-                </Group>
-
-                <Group justify="apart" align="center">
-                  <Text size="sm" c={p.isPast ? "dark" : undefined}>
-                    {p.isPast ? "Sudah lewat" : formatCountdown(p.dt)}
-                  </Text>
-
-                  <Badge
-                    color={p.isPast ? "orange" : "blue"}
-                    variant="light"
-                    radius="sm"
-                  >
-                    {p.isPast ? "Lewat" : "Akan datang"}
-                  </Badge>
-                </Group>
-              </Stack>
-            </Card>
-          );
-        })}
-      </SimpleGrid>
-    </Stack>
-  );
-}
-
-function UserList() {
+function ImamUserList() {
   const { data, error, isLoading } = useSwr(
     "/",
     apiFetch.api["jadwal-sholat"]["user-list"].get,
   );
-  if (isLoading) return <Loader />;
-  if (error) return <Text c="red">{error.message}</Text>;
+  if (isLoading) return <Loader size="sm" />;
+  if (error) return <Text c="red" size="sm">{error.message}</Text>;
   return (
-    <SimpleGrid
-      spacing={"sm"}
-      cols={{
-        base: 3,
-        sm: 6,
+    <Box
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(3, 1fr)",
+        gap: 6,
       }}
     >
       {data?.data?.data?.map((u) => {
         if (u.active === false) return null;
         return (
-          <Card key={u.id} radius={"40"} withBorder bg={"dark.9"}>
-            <Flex align="center" gap={"md"}>
-              <Text size="1rem">{u.name}</Text>
-            </Flex>
-          </Card>
+          <Paper
+            key={u.id}
+            p="sm"
+            style={{
+              ...glassInner,
+              textAlign: "center",
+            }}
+          >
+            <Group gap="xs" justify="center">
+              <IconStar size={14} color="rgba(20, 184, 166, 0.6)" />
+              <Text size="sm" c="white" fw={500}>
+                {u.name}
+              </Text>
+            </Group>
+          </Paper>
         );
       })}
-    </SimpleGrid>
+    </Box>
   );
 }
