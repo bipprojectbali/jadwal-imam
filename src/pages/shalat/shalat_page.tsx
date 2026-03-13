@@ -415,13 +415,10 @@ export default function AdhanPage() {
           </Card>
 
           {/* ===== SHALAT BERIKUTNYA + PILIH TANGGAL ===== */}
-          <Box
+          <SimpleGrid
+            cols={{ base: 1, sm: nextPrayer ? 2 : 1 }}
+            spacing="sm"
             className="ji-fadeUp ji-delay-2"
-            style={{
-              display: "grid",
-              gridTemplateColumns: nextPrayer ? "1fr 1fr" : "1fr",
-              gap: 10,
-            }}
           >
             {/* Shalat Berikutnya */}
             {nextPrayer && (
@@ -521,7 +518,7 @@ export default function AdhanPage() {
                 />
               </Stack>
             </Card>
-          </Box>
+          </SimpleGrid>
 
           {/* ===== JADWAL WAKTU SHALAT ===== */}
           <Card
